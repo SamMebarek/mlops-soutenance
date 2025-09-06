@@ -1,0 +1,5 @@
+pandas
+python_box
+PyYAML==6.0.2
+python-box
+prometheus_client

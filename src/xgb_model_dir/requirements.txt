@@ -1,0 +1,9 @@
+mlflow
+cloudpickle==3.1.1
+numpy
+pandas
+psutil==5.9.7
+pyarrow==14.0.2
+scikit-learn
+scipy
+xgboost

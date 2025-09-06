@@ -1,0 +1,181 @@
+services:
+  ingestion:
+    image: samdataiken/ingestion-service:dev
+    volumes:
+      - ./config:/app/config
+      - ./data/ingestion:/app/data/ingestion
+      - ./data/raw:/app/data/raw
+    networks:
+      - mlops_net
+
+  preprocessing:
+    image: samdataiken/preprocessing-service:dev
+    volumes:
+      - ./config:/app/config
+      - ./data/raw:/app/data/raw
+      - ./data/processed:/app/data/processed
+    networks:
+      - mlops_net
+
+  training:
+    image: samdataiken/training-service:dev
+    env_file:
+      - .env
+    volumes:
+      - ./config:/app/config
+      - ./data/processed:/app/data/processed
+      - ./models:/app/models
+    networks:
+      - mlops_net
+
+  evaluation:
+    image: samdataiken/evaluation-service:dev
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app/src
+    volumes:
+      - ./config:/app/config
+      - ./data/processed:/app/data/processed
+      - ./models:/app/models
+      - ./evaluation:/app/evaluation
+    networks:
+      - mlops_net
+
+  inference:
+    image: samdataiken/inference-service:dev
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/app/config
+      - ./data/processed:/app/data/processed
+      - ./mlruns:/app/mlruns
+    networks:
+      - mlops_net
+
+  gateway:
+    image: samdataiken/gateway-service:dev
+    env_file:
+      - .env
+    ports:
+      - "8002:8002"
+    networks:
+      - mlops_net
+    depends_on:
+      - inference
+
+  postgres:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_db:/var/lib/postgresql/data
+    networks:
+      - mlops_net
+
+  airflow-webserver:
+    image: samdataiken/airflow-webserver:dev
+    env_file:
+      - .env
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - "8084:8080"
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
+      AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: Europe/Paris
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - .:/opt/airflow/project
+      - ./models:/opt/airflow/project/models
+    networks:
+      - mlops_net
+    command: >
+      bash -c "
+      airflow db upgrade &&
+      airflow users create --username admin --password admin --firstname Sarah --lastname L --role Admin --email admin@example.com &&
+      airflow webserver
+      "
+
+  airflow-scheduler:
+    image: samdataiken/airflow-scheduler:dev
+    env_file:
+      - .env
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - .:/opt/airflow/project
+      - ./models:/opt/airflow/project/models
+    networks:
+      - mlops_net
+    command: >
+      bash -c "
+      airflow db upgrade &&
+      airflow scheduler
+      "
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - mlops_net
+    depends_on:
+      - gateway
+      - inference
+
+  pushgateway:
+    image: prom/pushgateway:v1.7.0
+    ports:
+      - "9091:9091"
+    networks:
+      - mlops_net
+
+  grafana:
+    image: grafana/grafana:10.4.3
+    ports:
+      - "3000:3000"
+    networks:
+      - mlops_net
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+volumes:
+  postgres_db:
+  grafana_data:
+
+networks:
+  mlops_net:
+    driver: bridge
