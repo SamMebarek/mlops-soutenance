@@ -51,7 +51,7 @@ Un exemple est fourni : [`.env.example`](.env.example).
 ### Linux
 
 ```bash
-git clone --branch soutenance --single-branch https://github.com/SamMebarek/mlops.git
+git clone https://github.com/SamMebarek/mlops-soutenance.git
 
 
 # Autoriser les permissions (simple pour la démo)
@@ -74,7 +74,7 @@ docker compose up -d
 Ouvrez Docker Desktop.
 
 ```powershell
-git clone --branch soutenance --single-branch https://github.com/SamMebarek/mlops.git
+git clone https://github.com/SamMebarek/mlops-soutenance.git
 cd rakuten-mlops
 
 # Copier le template
