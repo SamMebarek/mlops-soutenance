@@ -63,9 +63,9 @@ git clone https://github.com/SamMebarek/mlops-soutenance.git
 
 
 # Autoriser les permissions (simple pour la démo)
-sudo chmod -R 777 mlops
+sudo chmod -R 777 mlops-soutenance
 
-cd mlops
+cd mlops-soutenance
 
 # Créer votre .env à partir du template
 cp .env.example .env
