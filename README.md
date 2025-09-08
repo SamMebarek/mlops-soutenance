@@ -17,6 +17,14 @@ Côté technique, c’est une chaîne **MLOps complète** :
 
 ## 📐 Architecture
 
+
+![Schéma](docs/Data_Source.png)
+
+
+
+
+
+
 ### Services Docker
 | Service       | Rôle                                | Port   | URL utile |
 |---------------|-------------------------------------|--------|-----------|
